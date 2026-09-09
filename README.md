@@ -75,6 +75,33 @@ document.getElementById('loginBtn').onclick = async () => {
 };
 ```
 
+### Soroban Contract Calls
+
+Contract arguments stay positional arrays. Pass native JavaScript values and
+Blux reads the deployed contract spec to encode each value as the parameter's
+declared Soroban type:
+
+```ts
+const { values } = await core.readContracts([
+  {
+    address: contractId,
+    fn: 'balance',
+    args: [accountAddress],
+  },
+]);
+
+const submitted = await core.writeContract({
+  address: contractId,
+  fn: 'transfer',
+  // If `amount` is i128, either 1234 or '1234' is encoded as i128.
+  args: [recipientAddress, '1234'],
+});
+```
+
+Numbers, decimal strings, `bigint`s, booleans, addresses, byte arrays, vectors,
+maps, and contract-defined types are encoded according to the spec. Existing
+pre-encoded `ScVal` arguments from `core.ToScVal` continue to work.
+
 Create a project through the [Blux Dashboard](https://dashboard.blux.cc/) to obtain your application ID. You can create and manage multiple projects from the same account.
 
 ### Social Login

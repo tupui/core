@@ -13,13 +13,19 @@ import {
 } from '../utils';
 import { sendTransaction } from '../blux';
 import { ISubmittedTransaction } from '../../types';
+import { contractArgsToScVals } from './contractArgs';
 
 /**
  * Invokes a state-changing Soroban contract function: builds the call, simulates
  * it to attach resource fees / footprint / auth, then signs and submits it with
  * the logged-in account. Requires a logged-in user.
  *
- * @param call - The contract call to make; build `args` with {@link ToScVal}.
+ * Native `args` are encoded from the deployed contract's spec. Positional
+ * values such as `args: ['G...', 1234]` therefore become an address and,
+ * for example, an i128 when those are the function's declared parameter types.
+ * Pre-encoded {@link xdr.ScVal} arguments remain supported.
+ *
+ * @param call - The contract call to make.
  * @param options - Network to submit on.
  * @returns The submitted transaction, whose `returnValue()` resolves to the contract's decoded return value.
  * @throws If called before {@link createConfig}, if `call.address`/`call.fn` are missing, or if simulation fails.
@@ -43,10 +49,18 @@ export const writeContract = async (
   const { soroban, networkPassphrase } = getNetwork(options.network);
 
   const sourceAddress = getAddress();
-  const sourceAccount = await soroban.getAccount(sourceAddress);
-
   const contract = new Contract(call.address);
-  const args = call.args || [];
+  const [sourceAccount, args] = await Promise.all([
+    soroban.getAccount(sourceAddress),
+    contractArgsToScVals(
+      call.address,
+      call.fn,
+      call.args || [],
+      soroban,
+      networkPassphrase,
+      'call',
+    ),
+  ]);
 
   const transaction = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,

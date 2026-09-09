@@ -1,6 +1,6 @@
 import { IUser } from '../store';
 import { BluxAccessDeniedError } from './errors';
-import { bufferToBase64Url, fetcher } from './helpers';
+import { bufferToBase64Url, fetcher, timeout } from './helpers';
 import { AuthenticateApiResponse, WalletProofType } from '../types';
 import { BLUX_API, BLUX_APP_ID_HEADER } from '../constants/consts';
 import type { PasskeyFlowResult } from './passkey';
@@ -50,16 +50,39 @@ export const authenticateAppId = async (
     throw new Error('BLUX: appId is missing in config.');
   }
 
-  try {
-    const res = await fetcher<ApiResponse<ApiResponseAuth>>(
-      `${BLUX_API}/auth/validate`,
-      {
-        method: 'POST',
-        headers: {
-          [BLUX_APP_ID_HEADER]: appId,
-        },
+  const validate = () =>
+    fetcher<ApiResponse<ApiResponseAuth>>(`${BLUX_API}/auth/validate`, {
+      method: 'POST',
+      headers: {
+        [BLUX_APP_ID_HEADER]: appId,
       },
-    );
+    });
+
+  try {
+    let res: ApiResponse<ApiResponseAuth> | undefined;
+
+    // 5xx / network failures are transient, not a bad appId. One retry after
+    // 150ms so a brief API blip cannot disable login and signing for the session.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        res = await validate();
+        if (res.status < 500) {
+          break;
+        }
+      } catch (e) {
+        if (attempt === 1) {
+          throw e;
+        }
+      }
+
+      if (attempt === 0) {
+        await timeout(150);
+      }
+    }
+
+    if (!res) {
+      throw new Error('Unexpected response from api.');
+    }
 
     if (res.status === 200) {
       return {

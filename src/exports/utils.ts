@@ -13,8 +13,11 @@ export type IContractCall = {
   address: string;
   /** Name of the contract function to call. */
   fn: string;
-  /** Call arguments, encoded as Soroban values — build these with {@link ToScVal}. */
-  args: xdr.ScVal[];
+  /**
+   * Positional call arguments. Native JS values are encoded from the deployed
+   * contract's spec; pre-encoded {@link xdr.ScVal} values are also accepted.
+   */
+  args: unknown[];
 };
 
 /** Options for {@link readContracts}. */

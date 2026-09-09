@@ -143,8 +143,7 @@ const bigintToScvU128 = (value: bigint): xdr.ScVal => {
   // @ts-ignore
   const lo = bigintToUint64(bytesToBigint(false, ...loBuffer));
 
-  // @ts-ignore
-  return xdr.ScVal.scvU128(new xdr.UInt128Parts({ hi, lo }));
+  return xdr.ScVal.scvU128(new xdr.Uint128Parts({ hi, lo }));
 };
 
 const bigintToScvI256 = (value: bigint): xdr.ScVal => {
@@ -184,8 +183,7 @@ const bigintToScvU256 = (value: bigint): xdr.ScVal => {
   // @ts-ignore
   const loLo = bigintToUint64(bytesToBigint(false, ...lo_lo_buffer));
 
-  // @ts-ignore
-  return xdr.ScVal.scvU256(new xdr.UInt256Parts({ hiHi, hiLo, loHi, loLo }));
+  return xdr.ScVal.scvU256(new xdr.Uint256Parts({ hiHi, hiLo, loHi, loLo }));
 };
 
 /** Heuristic for whether a value should be treated as a leaf rather than a nested map. */

@@ -13,6 +13,7 @@ import {
   checkConfigCreated,
   ReadContractsOptions,
 } from '../utils';
+import { contractArgsToScVals } from './contractArgs';
 
 const NULL_ACCOUNT = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
 
@@ -22,7 +23,12 @@ const NULL_ACCOUNT = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
  * read-only. Each call's return value is decoded to a native JS value (`bigint`
  * results are stringified).
  *
- * @param calls - The contract calls to simulate; build `args` with {@link ToScVal}.
+ * Native `args` are encoded from each deployed contract's spec. Positional
+ * values such as `args: ['G...', '1234']` therefore become an address and,
+ * for example, an i128 when those are the function's declared parameter types.
+ * Pre-encoded {@link xdr.ScVal} arguments remain supported.
+ *
+ * @param calls - The contract calls to simulate.
  * @param options - Network to simulate against.
  * @returns `{ raws, values }` aligned to `calls` — `raws` holds the full
  *   simulation per call, `values` the decoded return values (`null` for a call
@@ -59,7 +65,14 @@ export const readContracts = async (
 
       const contract = new Contract(call.address);
 
-      const args = call.args || [];
+      const args = await contractArgsToScVals(
+        call.address,
+        call.fn,
+        call.args || [],
+        soroban,
+        networkPassphrase,
+        `calls[${callIndex}]`,
+      );
 
       const transaction = new TransactionBuilder(
         new Account(NULL_ACCOUNT, '0'),
