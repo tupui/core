@@ -14,7 +14,7 @@ Blux Core is a JavaScript/TypeScript SDK for adding authentication, Stellar wall
 ## Features
 
 - **Framework-Agnostic**: Use Blux Core with vanilla JavaScript, TypeScript, or any frontend framework.
-- **Multi-Wallet Support**: Integrate Stellar wallets such as **Rabet, xBull, LOBSTR, Freighter, Albedo, HOT Wallet, Hana, and more**.
+- **Multi-Wallet Support**: Integrate Stellar wallets such as **Rabet, xBull, LOBSTR, Freighter, Albedo, HOT Wallet, Hana, GHOSTSIG, and more**.
 - **Email, Passkey & Social Authentication**: Onboard users without requiring them to install or manage a traditional wallet.
 - **Transaction Signing**: Connect wallets and request transaction signatures through a consistent interface.
 - **Soroban Support**: Add Stellar smart contract interactions to your application.
@@ -275,6 +275,7 @@ Currently supported connection methods:
 - [x] **OneKey**
 - [x] **CactusLink**
 - [x] **Fordefi**
+- [x] **GHOSTSIG**
 - [x] **Trezor**
 - [x] **Email**
 - [x] **Google**

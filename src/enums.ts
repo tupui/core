@@ -17,6 +17,7 @@ export enum SupportedWallet {
   CactusLink = 'Cactus Link',
   Fordefi = 'Fordefi',
   Trezor = 'Trezor',
+  Ghostsig = 'GHOSTSIG',
 }
 
 export enum StellarNetwork {

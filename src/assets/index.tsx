@@ -295,3 +295,5 @@ export const PhoneIcon = ({ fill = '#0C1083' }: { fill?: string }) => {
     </svg>
   );
 };
+
+export { GhostsigLogo } from './GhostsigLogo';

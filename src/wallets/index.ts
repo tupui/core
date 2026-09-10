@@ -16,6 +16,7 @@ import { fordefiConfig } from './fordefi';
 import { freighterConfig } from './freighter';
 import { cactusLinkConfig } from './cactuslink';
 import { walletConnectConfig } from './walletConnect';
+import { ghostsigConfig } from './ghostsig';
 
 export const walletsConfig: Record<SupportedWallet, IWallet> = {
   [SupportedWallet.Freighter]: freighterConfig,
@@ -34,6 +35,7 @@ export const walletsConfig: Record<SupportedWallet, IWallet> = {
   [SupportedWallet.CactusLink]: cactusLinkConfig,
   [SupportedWallet.Fordefi]: fordefiConfig,
   [SupportedWallet.Trezor]: trezorConfig,
+  [SupportedWallet.Ghostsig]: ghostsigConfig,
 };
 
 /**

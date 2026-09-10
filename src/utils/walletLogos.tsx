@@ -4,6 +4,7 @@ import {
   CactusLinkLogo,
   FordefiLogo,
   TrezorLogo,
+  GhostsigLogo,
 } from '../assets';
 import CDNImage from '../components/CDNImage';
 import CDNFiles from '../constants/cdnFiles';
@@ -131,6 +132,8 @@ const handleLogos = (
     //todo
     case 'Trezor':
       return <TrezorLogo fill={isDark ? '#ffffff' : '#171717'} />;
+    case 'GHOSTSIG':
+      return <GhostsigLogo />;
     default:
       return null;
   }

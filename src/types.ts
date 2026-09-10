@@ -66,7 +66,7 @@ export type IWalletNames = Array<
   | 'klever'
   | 'cactuslink'
   | 'fordefi'
-  | 'trezor'
+  | 'trezor' | 'ghostsig'
 >;
 
 /** RPC endpoints for a single network. */
