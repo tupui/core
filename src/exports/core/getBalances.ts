@@ -6,8 +6,8 @@ import { checkConfigCreated, getAddress, getNetwork } from '../utils';
 /** Options for {@link getBalances}. */
 export type GetBalancesOptions = {
   /**
-   * Account whose balances to read: a Stellar address (`G...`/`M...`) or a SEP-2
-   * federated address. Defaults to the logged-in account.
+   * Account whose balances to read: a Stellar address (`G...`/`M...`), SEP-2
+   * federated address, or `.xlm` name. Defaults to the logged-in account.
    */
   address?: string;
   /** Network passphrase to query. Defaults to the active network. */
@@ -20,7 +20,7 @@ export type GetBalancesOptions = {
 export type GetBalancesResult = Horizon.HorizonApi.BalanceLine[];
 
 /**
- * Reads an account's asset balances, resolving federated addresses first.
+ * Reads an account's asset balances, resolving federated addresses and `.xlm` names first.
  *
  * @param options - Which account to read and on which network.
  * @returns The balance lines (native first), or an empty array if the account is not found.

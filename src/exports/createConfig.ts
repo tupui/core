@@ -6,10 +6,10 @@ import { getState } from '../store';
 import { authenticateAppId } from '../utils/api';
 import { Provider } from '../components/Provider';
 import { IConfig, IInternalConfig } from '../types';
-import { defaultLightTheme } from '../constants/themes';
 import { initializeTrezor } from '../utils/initializeTrezor';
 import { initializeWalletConnect } from '../utils/initializeWalletConnect';
 import { getEnabledSocials } from '../utils/socialLogin';
+import { configureThemeInheritance } from '../utils/themeInheritance';
 import {
   getNetworkRpc,
   handleLoadWallets,
@@ -20,15 +20,20 @@ import {
 
 export type {
   IAppearance,
+  IAppearanceConfig,
   IConfig,
   IExplorer,
   ILoginMethods,
   IServers,
+  IThemeInheritanceOptions,
   ITrezorMetaData,
   ITransports,
   IWalletConnectMetaData,
   IWalletNames,
   LanguageKey,
+  ThemeInheritance,
+  ThemeInheritanceSource,
+  ThemeVariableMap,
 } from '../types';
 
 let root: Root | null = null;
@@ -116,7 +121,18 @@ export function createConfig(config: IConfig, element?: HTMLElement) {
     );
   }
 
-  const SUPPORTED_LANGS = ['en', 'es', 'pt', 'fr', 'de', 'ru', 'zh', 'ja', 'ko', 'tr'];
+  const SUPPORTED_LANGS = [
+    'en',
+    'es',
+    'pt',
+    'fr',
+    'de',
+    'ru',
+    'zh',
+    'ja',
+    'ko',
+    'tr',
+  ];
   let lang = (config.lang || 'en').trim().toLowerCase();
 
   if (!SUPPORTED_LANGS.includes(lang)) {
@@ -135,10 +151,18 @@ export function createConfig(config: IConfig, element?: HTMLElement) {
 
   init(element);
 
+  const resolvedAppearance = configureThemeInheritance(
+    config.appearance,
+    element ?? document.body,
+    (appearance) => getState().setAppearance(appearance),
+  );
+
   let excludeWallets = config.excludeWallets || ['lobstr'];
 
   // @ts-ignore
-  excludeWallets = excludeWallets.map((x) => x.toLowerCase().replace(/\s+/g, ''));
+  excludeWallets = excludeWallets.map((x) =>
+    x.toLowerCase().replace(/\s+/g, ''),
+  );
 
   const orderWallets = validateOrderWallets(config.orderWallets);
 
@@ -154,10 +178,7 @@ export function createConfig(config: IConfig, element?: HTMLElement) {
     ...config,
     excludeWallets,
     orderWallets,
-    appearance: {
-      ...defaultLightTheme,
-      ...config?.appearance,
-    },
+    appearance: resolvedAppearance,
     defaultNetwork: '',
     promptOnWrongNetwork,
     lang: lang as IInternalConfig['lang'],

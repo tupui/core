@@ -14,6 +14,7 @@ import {
 import { sendTransaction } from '../blux';
 import { ISubmittedTransaction } from '../../types';
 import { contractArgsToScVals } from './contractArgs';
+import { resolveAddress } from './helpers';
 
 /**
  * Invokes a state-changing Soroban contract function: builds the call, simulates
@@ -30,10 +31,10 @@ import { contractArgsToScVals } from './contractArgs';
  * @returns The submitted transaction, whose `returnValue()` resolves to the contract's decoded return value.
  * @throws If called before {@link createConfig}, if `call.address`/`call.fn` are missing, or if simulation fails.
  */
-export const writeContract = async (
+export const writeContract = async <TReturnValue = unknown>(
   call: IContractCall,
   options: WriteContractsOptions = {},
-): Promise<ISubmittedTransaction> => {
+): Promise<ISubmittedTransaction<TReturnValue>> => {
   if (!checkConfigCreated()) {
     throw new Error('BLUX: writeContract must be called after createConfig');
   }
@@ -49,18 +50,19 @@ export const writeContract = async (
   const { soroban, networkPassphrase } = getNetwork(options.network);
 
   const sourceAddress = getAddress();
-  const contract = new Contract(call.address);
-  const [sourceAccount, args] = await Promise.all([
+  const [{ contractId }, sourceAccount] = await Promise.all([
+    resolveAddress(call.address, { expected: 'contract' }),
     soroban.getAccount(sourceAddress),
-    contractArgsToScVals(
-      call.address,
-      call.fn,
-      call.args || [],
-      soroban,
-      networkPassphrase,
-      'call',
-    ),
   ]);
+  const contract = new Contract(contractId);
+  const args = await contractArgsToScVals(
+    contractId,
+    call.fn,
+    call.args || [],
+    soroban,
+    networkPassphrase,
+    'call',
+  );
 
   const transaction = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,
@@ -74,7 +76,7 @@ export const writeContract = async (
 
   if (rpc.Api.isSimulationError(simulation)) {
     throw new Error(
-      `BLUX: Contract call failed (${call.address}.${call.fn}): ${simulation.error}`,
+      `BLUX: Contract call failed (${contractId}.${call.fn}): ${simulation.error}`,
     );
   }
 
@@ -82,5 +84,5 @@ export const writeContract = async (
 
   return sendTransaction(assembled.toXDR(), {
     network: networkPassphrase,
-  }) as Promise<ISubmittedTransaction>;
+  }) as Promise<ISubmittedTransaction<TReturnValue>>;
 };

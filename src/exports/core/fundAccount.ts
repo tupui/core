@@ -123,9 +123,9 @@ const fundOne = async (
 
 /**
  * Funds an account with test lumens via Friendbot. Resolves federated addresses
- * first and funds each requested network independently.
+ * and `.xlm` names first, then funds each requested network independently.
  *
- * @param address - Account to fund (address or federated address). Defaults to the logged-in account.
+ * @param address - Account to fund (address, federated address, or `.xlm` name). Defaults to the logged-in account.
  * @param options - Which network(s) to fund on.
  * @returns One {@link FundAccountResult} per requested network.
  * @throws If the address cannot be resolved, or a requested network is not fundable by Friendbot.

@@ -7,11 +7,11 @@ import { checkConfigCreated, CallBuilderOptions } from '../utils';
 
 /** Filter fields for {@link getAccounts}; at least one must be provided. */
 type GetAccountsFilters = {
-  /** Accounts that list this key as a signer (address or federated address). */
+  /** Accounts that list this key as a signer (address, SEP-2 address, or `.xlm` name). */
   forSigner?: string;
   /** Accounts holding a trustline to this asset (`'xlm'`, `'CODE:ISSUER'`, or an `Asset`). */
   forAsset?: AssetArg;
-  /** Accounts sponsored by this account id. */
+  /** Accounts sponsored by this account id, SEP-2 address, or `.xlm` name. */
   sponsor?: string;
   /** Accounts participating in this liquidity pool id. */
   forLiquidityPool?: string;

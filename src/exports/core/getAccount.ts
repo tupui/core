@@ -6,8 +6,8 @@ import { checkConfigCreated, getAddress, getNetwork } from '../utils';
 /** Options for {@link getAccount}. */
 export type GetAccountOptions = {
   /**
-   * Account to load: a Stellar address (`G...`/`M...`) or a SEP-2 federated
-   * address (`name*domain.com`). Defaults to the logged-in account.
+   * Account to load: a Stellar address (`G...`/`M...`), SEP-2 federated
+   * address (`name*domain.com`), or `.xlm` name. Defaults to the logged-in account.
    */
   address?: string;
   /** Network passphrase to query. Defaults to the active network. */
@@ -18,7 +18,7 @@ export type GetAccountOptions = {
 export type GetAccountResult = Horizon.AccountResponse | null;
 
 /**
- * Loads a single account from Horizon, resolving federated addresses first.
+ * Loads a single account from Horizon, resolving federated addresses and `.xlm` names first.
  *
  * @param options - Which account to load and on which network.
  * @returns The account record, or `null` if it is not found / not yet funded.

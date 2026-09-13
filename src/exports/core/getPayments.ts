@@ -4,7 +4,7 @@ import { checkConfigCreated, CallBuilderOptions } from '../utils';
 
 /** Options for {@link getPayments}. Extends the shared {@link CallBuilderOptions}. */
 export type GetPaymentsOptions = CallBuilderOptions & {
-  /** Only payments touching this account (address or federated address). */
+  /** Only payments touching this account (address, SEP-2 address, or `.xlm` name). */
   forAccount?: string;
   /** Only payments in this ledger, by sequence number. */
   forLedger?: string | number;

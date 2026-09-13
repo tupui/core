@@ -1,18 +1,25 @@
 import { getState as getStoreState } from '../store';
 import { BluxEventMap, ReadOnlyEmitter } from '../utils/events';
+import { updateThemeAppearance } from '../utils/themeInheritance';
+import type { IAppearanceConfig } from '../types';
 
 export type {
   IAppearance,
+  IAppearanceConfig,
   IConfig,
   IExplorer,
   ILoginMethods,
   IServers,
   ISocialProvider,
+  IThemeInheritanceOptions,
   ITrezorMetaData,
   ITransports,
   IWalletConnectMetaData,
   IWalletNames,
   LanguageKey,
+  ThemeInheritance,
+  ThemeInheritanceSource,
+  ThemeVariableMap,
 } from '../types';
 export type { IUser } from '../store';
 export type { IExportedStore } from './exportedStore';
@@ -37,7 +44,13 @@ export {
   getInitialState,
   useExportedStore,
 } from './exportedStore';
-export const setAppearance = getStoreState().setAppearance;
+export const setAppearance = (appearance: IAppearanceConfig) => {
+  if (!updateThemeAppearance(appearance)) {
+    const { inherit: _inherit, ...overrides } = appearance;
+
+    getStoreState().setAppearance(overrides);
+  }
+};
 
 export const events: ReadOnlyEmitter<BluxEventMap> = {
   on: (event, handler) => getStoreState().emitter.on(event, handler),

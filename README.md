@@ -75,6 +75,48 @@ document.getElementById('loginBtn').onclick = async () => {
 };
 ```
 
+### Theme inheritance
+
+Choose a framework explicitly to inherit its semantic theme values. Blux
+resolves the active values from its mount scope, keeps them synchronized across
+light/dark theme changes, and reapplies your overrides last:
+
+```ts
+createConfig({
+  appName: 'My App',
+  appId: 'GET_FROM_BLUX_DASHBOARD',
+  networks: [core.networks.mainnet],
+  appearance: {
+    inherit: 'shadcn',
+    accentColor: '#7c3aed', // Always wins over the inherited primary color.
+  },
+});
+```
+
+Supported adapters are `shadcn`, `radix`, `daisyui`, `chakra`, `mantine`,
+`mui`, `joy`, `heroui` (v3), and `bootstrap`. Prefixes, Chakra palettes, nested
+theme scopes, and custom CSS systems use the options form:
+
+```ts
+appearance: {
+  inherit: {
+    source: 'css',
+    scope: '#app-theme',
+    variables: {
+      textColor: '--app-foreground',
+      accentColor: '--app-primary',
+      background: '--app-dialog-surface',
+      borderRadius: '--app-dialog-radius',
+    },
+  },
+}
+```
+
+Use `prefix` for custom Chakra, MUI, Joy, or Bootstrap CSS-variable prefixes,
+and `colorPalette` to opt into a Chakra primary palette. Missing or invalid
+values retain the Blux default; Blux never guesses a framework or primary
+palette.
+
 ### Soroban Contract Calls
 
 Contract arguments stay positional arrays. Pass native JavaScript values and
@@ -82,25 +124,44 @@ Blux reads the deployed contract spec to encode each value as the parameter's
 declared Soroban type:
 
 ```ts
-const { values } = await core.readContracts([
+const { values } = await core.readContracts<[string]>([
   {
-    address: contractId,
+    address: 'token.xlm',
     fn: 'balance',
-    args: [accountAddress],
+    args: ['alice.xlm'],
   },
 ]);
 
-const submitted = await core.writeContract({
-  address: contractId,
+const submitted = await core.writeContract<bigint>({
+  address: 'token.xlm',
   fn: 'transfer',
   // If `amount` is i128, either 1234 or '1234' is encoded as i128.
-  args: [recipientAddress, '1234'],
+  args: ['alice.xlm', '1234'],
 });
+const contractResult = await submitted.returnValue(); // bigint
 ```
 
 Numbers, decimal strings, `bigint`s, booleans, addresses, byte arrays, vectors,
 maps, and contract-defined types are encoded according to the spec. Existing
 pre-encoded `ScVal` arguments from `core.ToScVal` continue to work.
+
+### Human-readable Stellar addresses
+
+Every core field that expects an account or contract address accepts a `.xlm`
+name as well as `G...`, `M...`, `C...`, and standard SEP-2 federation notation:
+
+```ts
+await core.transfer({ to: 'alice.xlm', amount: '10' });
+await core.getAccount({ address: 'alice.xlm' });
+await core.readContracts([
+  { address: 'token.xlm', fn: 'balance', args: ['alice.xlm'] },
+]);
+```
+
+Invalid names and names without an address record throw before a transaction is
+built. XLM Domains currently uses a mainnet registry, so names resolve to the
+same record even when a Blux call selects testnet; normal testnet account or
+contract existence rules still apply after resolution.
 
 Create a project through the [Blux Dashboard](https://dashboard.blux.cc/) to obtain your application ID. You can create and manage multiple projects from the same account.
 

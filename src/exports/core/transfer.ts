@@ -2,7 +2,6 @@ import {
   xdr,
   Memo,
   Asset,
-  StrKey,
   Horizon,
   Operation,
   Claimant,
@@ -26,9 +25,9 @@ import {
 /** Options for {@link transfer}. */
 export type TransferOptions = {
   /**
-   * Recipient: a Stellar address (`G...` or muxed `M...`) or a SEP-2 federated
-   * address (`alice*example.com`). For a `token` transfer a contract id (`C...`)
-   * is also accepted.
+   * Recipient: a Stellar address (`G...` or muxed `M...`), a SEP-2 federated
+   * address (`alice*example.com`), or a `.xlm` name. For a `token` transfer a
+   * contract id (`C...`) or a name resolving to one is also accepted.
    */
   to: string;
   /**
@@ -51,8 +50,9 @@ export type TransferOptions = {
    */
   claimable?: boolean;
   /**
-   * A SEP-41 token contract id (`C...`). When set, value moves through the
-   * contract's `transfer(from, to, amount)` entrypoint instead of a classic op.
+   * A SEP-41 token contract id (`C...`) or name resolving to one. When set,
+   * value moves through the contract's `transfer(from, to, amount)` entrypoint
+   * instead of a classic op.
    */
   token?: string;
   /** Network passphrase to send on. Defaults to the active network. */
@@ -197,27 +197,24 @@ export const transfer = async (
   }
 
   if (token) {
-    if (!StrKey.isValidContract(token)) {
-      throw new Error('BLUX: "token" must be a contract id (C...).');
-    }
-
     if (amountString.includes('.') || /e/i.test(amountString)) {
       throw new Error(
         'BLUX: token transfers use integer base units; "amount" cannot have decimals.',
       );
     }
 
-    const tokenTo = StrKey.isValidContract(to)
-      ? to
-      : (await resolveAddress(to)).publicKey;
+    const [{ contractId }, recipient] = await Promise.all([
+      resolveAddress(token, { expected: 'contract' }),
+      resolveAddress(to, { expected: 'soroban' }),
+    ]);
 
     return writeContract(
       {
-        address: token,
+        address: contractId,
         fn: 'transfer',
         args: [
           ToScVal.address(sourceAddress),
-          ToScVal.address(tokenTo),
+          ToScVal.address(recipient.address),
           ToScVal.i128(amountString),
         ],
       },

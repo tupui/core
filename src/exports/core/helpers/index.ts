@@ -7,7 +7,11 @@ export { resolveAsset, type AssetArg } from './resolveAsset';
 export {
   resolveAddress,
   resolveAddressKey,
+  type AddressExpectation,
+  type ResolveAddressOptions,
   type ResolvedAddress,
+  type ResolvedAccountAddress,
+  type ResolvedContractAddress,
 } from './resolveAddress';
 export { loadAccount, hasTrustline } from './account';
 export { numberish, type Numberish } from '../toScVal';

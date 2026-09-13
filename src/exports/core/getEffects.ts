@@ -7,7 +7,7 @@ import { checkConfigCreated, CallBuilderOptions } from '../utils';
 
 /** Options for {@link getEffects}. Extends the shared {@link CallBuilderOptions}. */
 export type GetEffectsOptions = CallBuilderOptions & {
-  /** Only effects touching this account (address or federated address). */
+  /** Only effects touching this account (address, SEP-2 address, or `.xlm` name). */
   forAccount?: string;
   /** Only effects in this ledger, by sequence number. */
   forLedger?: string | number;

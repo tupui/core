@@ -7,15 +7,15 @@ import { checkConfigCreated, CallBuilderOptions } from '../utils';
 
 /** Options for {@link getOffers}. Extends the shared {@link CallBuilderOptions}. */
 export type GetOffersOptions = CallBuilderOptions & {
-  /** Only offers owned by this account (address or federated address). */
+  /** Only offers owned by this account (address, SEP-2 address, or `.xlm` name). */
   forAccount?: string;
   /** Only offers buying this asset (`'xlm'`, `'CODE:ISSUER'`, or an `Asset`). */
   buying?: AssetArg;
   /** Only offers selling this asset (`'xlm'`, `'CODE:ISSUER'`, or an `Asset`). */
   selling?: AssetArg;
-  /** Only offers sponsored by this account id. */
+  /** Only offers sponsored by this account id, SEP-2 address, or `.xlm` name. */
   sponsor?: string;
-  /** Only offers created by this seller (address or federated address). */
+  /** Only offers created by this seller (address, SEP-2 address, or `.xlm` name). */
   seller?: string;
 };
 

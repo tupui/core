@@ -14,8 +14,19 @@ import {
   ReadContractsOptions,
 } from '../utils';
 import { contractArgsToScVals } from './contractArgs';
+import { resolveAddress } from './helpers';
 
 const NULL_ACCOUNT = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
+
+/** Result of a non-empty {@link readContracts} call. */
+export type ReadContractsResult<
+  TValues extends readonly unknown[] = readonly unknown[],
+> = {
+  /** Full successful RPC simulation responses, aligned with the calls. */
+  raws: Array<rpc.Api.SimulateTransactionSuccessResponse | undefined>;
+  /** Decoded native return values, aligned with the calls. */
+  values: TValues;
+};
 
 /**
  * Reads from one or more Soroban contracts by simulating the calls — no
@@ -35,10 +46,20 @@ const NULL_ACCOUNT = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
  *   that returned nothing). An empty array is returned when `calls` is empty.
  * @throws If called before {@link createConfig}, if `calls` is not an array, or if any simulation fails.
  */
-export const readContracts = async (
-  calls: IContractCall[],
+export function readContracts(
+  calls: readonly [],
+  options?: ReadContractsOptions,
+): Promise<[]>;
+export function readContracts<
+  TValues extends readonly unknown[] = readonly unknown[],
+>(
+  calls: readonly IContractCall[],
+  options?: ReadContractsOptions,
+): Promise<ReadContractsResult<TValues>>;
+export async function readContracts(
+  calls: readonly IContractCall[],
   options: ReadContractsOptions = {},
-) => {
+) {
   if (!checkConfigCreated()) {
     throw new Error('BLUX: readContracts must be called after createConfig');
   }
@@ -63,10 +84,13 @@ export const readContracts = async (
         throw new Error(`BLUX: calls[${callIndex}].fn is required`);
       }
 
-      const contract = new Contract(call.address);
+      const { contractId } = await resolveAddress(call.address, {
+        expected: 'contract',
+      });
+      const contract = new Contract(contractId);
 
       const args = await contractArgsToScVals(
-        call.address,
+        contractId,
         call.fn,
         call.args || [],
         soroban,
@@ -89,7 +113,7 @@ export const readContracts = async (
 
       if (rpc.Api.isSimulationError(simulation)) {
         throw new Error(
-          `BLUX: Contract call failed at calls[${callIndex}] (${call.address}.${call.fn}): ${simulation.error}`,
+          `BLUX: Contract call failed at calls[${callIndex}] (${contractId}.${call.fn}): ${simulation.error}`,
         );
       }
 
@@ -115,6 +139,6 @@ export const readContracts = async (
 
   return {
     raws,
-    values,
+    values: values as readonly unknown[],
   };
-};
+}

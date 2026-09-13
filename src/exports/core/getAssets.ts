@@ -2,13 +2,14 @@ import { Horizon } from '@stellar/stellar-sdk';
 import { AssetsCallBuilder } from '@stellar/stellar-sdk/lib/esm/horizon/assets_call_builder';
 
 import { callBuilder } from './callBuilder';
+import { resolveAddressKey } from './helpers';
 import { checkConfigCreated, CallBuilderOptions } from '../utils';
 
 /** Options for {@link getAssets}. Extends the shared {@link CallBuilderOptions}. */
 export type GetAssetsOptions = CallBuilderOptions & {
   /** Filter to a single asset code (e.g. `USDC`). */
   forCode?: string;
-  /** Filter to assets issued by this account id. */
+  /** Filter to assets issued by this account id, SEP-2 address, or `.xlm` name. */
   forIssuer?: string;
 };
 
@@ -35,8 +36,10 @@ export const getAssets = async (
     builder = builder.forCode(options.forCode);
   }
 
-  if (options.forIssuer) {
-    builder = builder.forIssuer(options.forIssuer);
+  const forIssuer = await resolveAddressKey(options.forIssuer);
+
+  if (forIssuer) {
+    builder = builder.forIssuer(forIssuer);
   }
 
   const response = await builder.call();

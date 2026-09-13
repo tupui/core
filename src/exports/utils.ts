@@ -9,13 +9,14 @@ import { getNetworkRpc } from '../utils/networkRpc';
  * {@link writeContract}.
  */
 export type IContractCall = {
-  /** Contract id (`C...`) to invoke. */
+  /** Contract id (`C...`) or `.xlm`/SEP-2 name resolving to a contract. */
   address: string;
   /** Name of the contract function to call. */
   fn: string;
   /**
    * Positional call arguments. Native JS values are encoded from the deployed
-   * contract's spec; pre-encoded {@link xdr.ScVal} values are also accepted.
+   * contract's spec; address-typed strings may be `G...`, `C...`, SEP-2, or
+   * `.xlm` names. Pre-encoded {@link xdr.ScVal} values are also accepted.
    */
   args: unknown[];
 };

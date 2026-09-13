@@ -16,7 +16,7 @@ export type GetPaymentPathResult = {
  * destination must receive exactly X — what could the source send?".
  *
  * @param args - `[source, destinationAsset, destinationAmount]`. `source` is
- *   either the paying account (address or federated address) or an array of
+ *   either the paying account (address, federated address, or `.xlm` name) or an array of
  *   candidate source assets; `destinationAsset` accepts `'xlm'`/`'CODE:ISSUER'`/`Asset`.
  * @param options - Pagination and network.
  * @returns The `builder` (for further paging) and the first-page `response`.

@@ -97,6 +97,48 @@ export interface ITrezorMetaData {
   appUrl?: string;
 }
 
+/** Supported sources for semantic host-theme inheritance. */
+export type ThemeInheritanceSource =
+  | 'shadcn'
+  | 'radix'
+  | 'daisyui'
+  | 'chakra'
+  | 'mantine'
+  | 'mui'
+  | 'joy'
+  | 'heroui'
+  | 'bootstrap'
+  | 'css';
+
+/** Appearance fields that a custom CSS-variable adapter may inherit. */
+export type ThemeVariableMap = Partial<
+  Record<Exclude<keyof IAppearance, 'logo'>, string>
+>;
+
+/** Advanced theme-inheritance options. */
+export interface IThemeInheritanceOptions {
+  /** The explicitly selected framework adapter. */
+  source: ThemeInheritanceSource;
+  /** Theme scope element or selector. Defaults to Blux's mount element. */
+  scope?: HTMLElement | string;
+  /** Custom CSS-variable prefix for frameworks that support one. */
+  prefix?: string;
+  /** Chakra palette to use as the app's primary palette. */
+  colorPalette?: string;
+  /** Semantic CSS-variable mapping used by the `css` adapter. */
+  variables?: ThemeVariableMap;
+}
+
+/** A framework name or advanced inheritance configuration. */
+export type ThemeInheritance =
+  | ThemeInheritanceSource
+  | IThemeInheritanceOptions;
+
+/** Public appearance input, including optional host-theme inheritance. */
+export type IAppearanceConfig = Partial<IAppearance> & {
+  inherit?: ThemeInheritance;
+};
+
 /** Configuration passed to {@link createConfig}. */
 export interface IConfig {
   /** Your Blux app id, from the Blux dashboard. Required for email/SMS/passkey/social login. */
@@ -107,8 +149,8 @@ export interface IConfig {
   networks: string[];
   /** Which of `networks` to start on. Defaults to the first entry. */
   defaultNetwork?: string;
-  /** Theme overrides for the Blux UI. */
-  appearance?: Partial<IAppearance>;
+  /** Theme overrides and optional semantic host-theme inheritance for the Blux UI. */
+  appearance?: IAppearanceConfig;
   /** UI language. Defaults to `'en'`. */
   lang?: LanguageKey;
   /** Block explorer used for links. Defaults to `'stellarchain'`. */
@@ -304,14 +346,15 @@ export interface ISignOptions {
  * to a native JS value. Resolves to `null` for classic transactions and for
  * Soroban calls whose function returns nothing.
  */
-export type TransactionReturnValue = () => Promise<unknown>;
+export type TransactionReturnValue<TReturnValue = unknown> =
+  () => Promise<TReturnValue | null>;
 
 /** A transaction that has been submitted to (and accepted by) the network. */
-export interface ISubmittedTransaction {
+export interface ISubmittedTransaction<TReturnValue = unknown> {
   /** The transaction hash. */
   hash: string;
   /** Resolves the invoked contract function's return value; see {@link TransactionReturnValue}. */
-  returnValue: TransactionReturnValue;
+  returnValue: TransactionReturnValue<TReturnValue>;
   /**
    * The underlying response: a Horizon submit response for classic
    * transactions, or the finalized Soroban RPC transaction for contract calls.
@@ -322,7 +365,9 @@ export interface ISubmittedTransaction {
 }
 
 /** Result of a sign-and-send: the submitted transaction, or the signed XDR when not submitting. */
-export type SendTransactionResult = ISubmittedTransaction | string;
+export type SendTransactionResult<TReturnValue = unknown> =
+  | ISubmittedTransaction<TReturnValue>
+  | string;
 
 export interface ISendTransaction {
   xdr: string;

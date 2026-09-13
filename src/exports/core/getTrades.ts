@@ -13,7 +13,7 @@ export type GetTradesOptions = CallBuilderOptions & {
   forOffer?: string;
   /** Only trades of this type (e.g. `orderbook`, `liquidity_pool`). */
   forType?: Horizon.ServerApi.TradeType;
-  /** Only trades involving this account (address or federated address). */
+  /** Only trades involving this account (address, SEP-2 address, or `.xlm` name). */
   forAccount?: string;
   /** Only trades for this liquidity pool id. */
   forLiquidityPool?: string;

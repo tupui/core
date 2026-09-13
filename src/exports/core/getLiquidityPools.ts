@@ -9,7 +9,7 @@ import { checkConfigCreated, CallBuilderOptions } from '../utils';
 export type GetLiquidityPoolsOptions = CallBuilderOptions & {
   /** Only pools made up of exactly these reserve assets (`'xlm'`, `'CODE:ISSUER'`, or `Asset`). */
   forAssets?: Array<AssetArg>;
-  /** Only pools this account holds shares in (address or federated address). */
+  /** Only pools this account holds shares in (address, SEP-2 address, or `.xlm` name). */
   forAccount?: string;
 };
 

@@ -1,117 +1,269 @@
 import { StrKey, Federation, extractBaseAddress } from '@stellar/stellar-sdk';
 
-/** The outcome of resolving a recipient with {@link resolveAddress}. */
-export type ResolvedAddress = {
+const XLM_DOMAINS_FEDERATION_DOMAIN = 'xlm.domains';
+const XLM_LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+const XLM_NAME_PATTERN = new RegExp(
+  `^(?:${XLM_LABEL}\\.)*${XLM_LABEL}\\.xlm$`,
+  'i',
+);
+
+/** Which kind of Stellar address a caller is able to consume. */
+export type AddressExpectation = 'account' | 'contract' | 'soroban';
+
+/** Federation options plus the address kind required by the calling API. */
+export type ResolveAddressOptions = Federation.Api.Options & {
+  /**
+   * `account` accepts `G...`/`M...`, `contract` accepts only `C...`, and
+   * `soroban` accepts either `G...` or `C...` (but not muxed accounts).
+   * Defaults to `account` for backwards compatibility.
+   */
+  expected?: AddressExpectation;
+};
+
+type ResolvedAddressBase = {
+  /** The normalized ledger address: a base `G...` account or `C...` contract. */
+  address: string;
   /**
    * The address to drop into an operation. A muxed (`M...`) input is preserved
-   * here so its embedded memo id survives a classic payment; for every other
-   * input this equals {@link ResolvedAddress.publicKey}.
+   * here so its embedded memo id survives a classic payment.
    */
   destination: string;
-  /**
-   * The underlying Ed25519 account id (`G...`). Use this for account-existence
-   * lookups, createAccount destinations, and claimable-balance claimants — none
-   * of which accept a muxed address.
-   */
-  publicKey: string;
   /** The memo a federation record asks senders to attach, when it provided one. */
   memo?: string;
-  /** The type of {@link ResolvedAddress.memo} (`text` | `id` | `hash` | `return`). */
+  /** The type of {@link ResolvedAddressBase.memo} (`text` | `id` | `hash` | `return`). */
   memoType?: string;
-  /** `true` when the input was a federated address that required a network lookup. */
+  /** `true` when the input required a SEP-2 federation lookup. */
   federated: boolean;
 };
 
-/**
- * Reduces an address to the base Ed25519 account that actually exists on the
- * ledger (a muxed `M...` address wraps one such account).
- *
- * @param address - A `G...` or `M...` address.
- * @returns The base `G...` account id.
- * @throws If `address` is neither a valid Ed25519 nor muxed key.
- */
-const toBasePublicKey = (address: string): string => {
-  if (StrKey.isValidEd25519PublicKey(address)) {
-    return address;
-  }
-
-  if (StrKey.isValidMed25519PublicKey(address)) {
-    return extractBaseAddress(address);
-  }
-
-  throw new Error(`BLUX: Resolved an invalid account id "${address}".`);
+/** A resolved classic account address. */
+export type ResolvedAccountAddress = ResolvedAddressBase & {
+  kind: 'account';
+  /** The underlying Ed25519 account id (`G...`). */
+  publicKey: string;
 };
 
-/**
- * Turns whatever a caller passed as a recipient into a usable account id:
- *
- * - A valid Stellar address (`G...` or muxed `M...`) is used as-is.
- * - A SEP-2 federated address (e.g. `alice*example.com`) is looked up against
- *   the domain's federation server.
- * - Anything else throws, so a transaction is never built toward garbage.
- *
- * @param value - An address or federated address.
- * @param opts - Optional federation lookup options (e.g. `timeout`, `allowHttp`).
- * @returns The resolved address details — see {@link ResolvedAddress}.
- * @throws If the value is neither a valid address nor a resolvable federated address.
- */
-export const resolveAddress = async (
-  value: string,
-  opts?: Federation.Api.Options,
-): Promise<ResolvedAddress> => {
-  const trimmed = (value ?? '').toString().trim();
+/** A resolved Soroban contract address. */
+export type ResolvedContractAddress = ResolvedAddressBase & {
+  kind: 'contract';
+  /** The resolved contract id (`C...`). */
+  contractId: string;
+};
 
-  if (!trimmed) {
-    throw new Error('BLUX: A destination address is required.');
+/** The outcome of resolving an account, contract, federated address, or `.xlm` name. */
+export type ResolvedAddress = ResolvedAccountAddress | ResolvedContractAddress;
+
+type AccountAddressOptions = ResolveAddressOptions & {
+  expected?: 'account';
+};
+
+type ContractAddressOptions = ResolveAddressOptions & {
+  expected: 'contract';
+};
+
+type SorobanAddressOptions = ResolveAddressOptions & {
+  expected: 'soroban';
+};
+
+const invalidXlmName = (name: string): Error =>
+  new Error(
+    `BLUX: "${name}" is not a valid .xlm name. Use a name such as "alice.xlm".`,
+  );
+
+/** Converts `.xlm` display notation into the service's SEP-2 address. */
+const toFederationAddress = (
+  value: string,
+): { address: string; xlmName: boolean } => {
+  if (!value.toLowerCase().endsWith('.xlm')) {
+    return { address: value, xlmName: false };
   }
 
-  if (
-    StrKey.isValidEd25519PublicKey(trimmed) ||
-    StrKey.isValidMed25519PublicKey(trimmed)
-  ) {
+  if (value.length > 253 || !XLM_NAME_PATTERN.test(value)) {
+    throw invalidXlmName(value);
+  }
+
+  const name = value.slice(0, -'.xlm'.length).toLowerCase();
+
+  return {
+    address: `${name}*${XLM_DOMAINS_FEDERATION_DOMAIN}`,
+    xlmName: true,
+  };
+};
+
+const asResolvedAddress = (
+  address: string,
+  details: Pick<ResolvedAddressBase, 'federated' | 'memo' | 'memoType'>,
+): ResolvedAddress => {
+  if (StrKey.isValidEd25519PublicKey(address)) {
     return {
-      destination: trimmed,
-      publicKey: toBasePublicKey(trimmed),
-      federated: false,
+      address,
+      destination: address,
+      publicKey: address,
+      kind: 'account',
+      ...details,
     };
   }
 
-  if (!trimmed.includes('*')) {
+  if (StrKey.isValidMed25519PublicKey(address)) {
+    const publicKey = extractBaseAddress(address);
+
+    return {
+      address: publicKey,
+      destination: address,
+      publicKey,
+      kind: 'account',
+      ...details,
+    };
+  }
+
+  if (StrKey.isValidContract(address)) {
+    return {
+      address,
+      destination: address,
+      contractId: address,
+      kind: 'contract',
+      ...details,
+    };
+  }
+
+  throw new Error(`BLUX: Resolved an invalid Stellar address "${address}".`);
+};
+
+const assertExpectedAddress = (
+  input: string,
+  resolved: ResolvedAddress,
+  expected: AddressExpectation,
+): void => {
+  if (expected === 'account' && resolved.kind !== 'account') {
     throw new Error(
-      `BLUX: "${trimmed}" is not a valid Stellar address or federated address.`,
+      `BLUX: "${input}" resolves to a contract address (C...), but this field requires an account address (G... or M...).`,
+    );
+  }
+
+  if (expected === 'contract' && resolved.kind !== 'contract') {
+    throw new Error(
+      `BLUX: "${input}" resolves to an account address (G...), but this field requires a contract address (C...).`,
+    );
+  }
+
+  if (
+    expected === 'soroban' &&
+    resolved.kind === 'account' &&
+    StrKey.isValidMed25519PublicKey(resolved.destination)
+  ) {
+    throw new Error(
+      `BLUX: "${input}" is a muxed account (M...), which cannot be used as a Soroban address.`,
+    );
+  }
+};
+
+/**
+ * Resolves Stellar addresses through one shared path:
+ *
+ * - Valid `G...`, `M...`, and `C...` addresses are validated locally.
+ * - SEP-2 addresses such as `alice*example.com` use the domain's federation
+ *   server.
+ * - `.xlm` names such as `alice.xlm` are translated to
+ *   `alice*xlm.domains` and resolved through XLM Domains' SEP-2 service.
+ *
+ * XLM Domains currently stores its registry on Stellar mainnet. Resolution is
+ * therefore intentionally independent of the transaction network: a testnet
+ * call resolves the same record, after which the selected network determines
+ * whether that account or contract can actually be used there.
+ *
+ * @param value - A Stellar address, SEP-2 address, or `.xlm` name.
+ * @param options - Federation connection options and the required address kind.
+ * @returns Validated, normalized address details.
+ * @throws If the input is invalid, the name has no record, or its record has the wrong address kind.
+ */
+export function resolveAddress(
+  value: string,
+  options?: AccountAddressOptions,
+): Promise<ResolvedAccountAddress>;
+export function resolveAddress(
+  value: string,
+  options: ContractAddressOptions,
+): Promise<ResolvedContractAddress>;
+export function resolveAddress(
+  value: string,
+  options: SorobanAddressOptions,
+): Promise<ResolvedAddress>;
+export function resolveAddress(
+  value: string,
+  options: ResolveAddressOptions,
+): Promise<ResolvedAddress>;
+export async function resolveAddress(
+  value: string,
+  options: ResolveAddressOptions = {},
+): Promise<ResolvedAddress> {
+  const trimmed = (value ?? '').toString().trim();
+
+  if (!trimmed) {
+    throw new Error('BLUX: A Stellar address or .xlm name is required.');
+  }
+
+  const expected = options.expected ?? 'account';
+  const { expected: _expected, ...federationOptions } = options;
+
+  if (
+    StrKey.isValidEd25519PublicKey(trimmed) ||
+    StrKey.isValidMed25519PublicKey(trimmed) ||
+    StrKey.isValidContract(trimmed)
+  ) {
+    const resolved = asResolvedAddress(trimmed, { federated: false });
+    assertExpectedAddress(trimmed, resolved, expected);
+    return resolved;
+  }
+
+  const federation = toFederationAddress(trimmed);
+
+  if (!federation.address.includes('*')) {
+    throw new Error(
+      `BLUX: "${trimmed}" is not a valid Stellar address, federated address, or .xlm name.`,
     );
   }
 
   let record: Federation.Api.Record;
 
   try {
-    record = await Federation.Server.resolve(trimmed, opts);
+    record = await Federation.Server.resolve(
+      federation.address,
+      federationOptions,
+    );
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : 'lookup failed';
+    const subject = federation.xlmName
+      ? `.xlm name "${trimmed}"`
+      : `federated address "${trimmed}"`;
 
     throw new Error(
-      `BLUX: Could not resolve federated address "${trimmed}": ${reason}`,
+      `BLUX: Could not resolve ${subject}; it is invalid or has no address record: ${reason}`,
     );
   }
 
-  return {
-    destination: record.account_id,
-    publicKey: toBasePublicKey(record.account_id),
+  if (!record.account_id) {
+    const subject = federation.xlmName
+      ? `.xlm name "${trimmed}"`
+      : `federated address "${trimmed}"`;
+
+    throw new Error(
+      `BLUX: Could not resolve ${subject}; it has no address record.`,
+    );
+  }
+
+  const resolved = asResolvedAddress(record.account_id, {
     memo: record.memo,
     memoType: record.memo_type,
     federated: true,
-  };
-};
+  });
+
+  assertExpectedAddress(trimmed, resolved, expected);
+  return resolved;
+}
 
 /**
- * Convenience wrapper for the common "I only need the account id" case (Horizon
- * query filters such as `forAccount`/`sponsor`/`claimant`). Passes `undefined`
- * through untouched so optional filters stay optional, and resolves everything
- * else — including federated addresses — down to its base Ed25519 key.
- *
- * @param address - An optional address or federated address.
- * @returns The base `G...` key, or `undefined` when no address was given.
- * @throws If a non-empty `address` is neither valid nor resolvable.
+ * Resolves an optional account field to its base `G...` key. This is used by
+ * Horizon filters such as `forAccount`, `forIssuer`, `sponsor`, and `claimant`.
  */
 export const resolveAddressKey = async (
   address?: string,
@@ -120,5 +272,5 @@ export const resolveAddressKey = async (
     return undefined;
   }
 
-  return (await resolveAddress(address)).publicKey;
+  return (await resolveAddress(address, { expected: 'account' })).publicKey;
 };

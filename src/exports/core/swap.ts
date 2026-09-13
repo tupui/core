@@ -47,8 +47,8 @@ export type SwapOptions = {
   /** Which side is fixed. Defaults to `'exactIn'`. */
   type?: SwapType;
   /**
-   * Where the bought asset is delivered: a Stellar address (`G...`/`M...`) or a
-   * SEP-2 federated address. Defaults to the logged-in account (a self-swap).
+   * Where the bought asset is delivered: a Stellar address (`G...`/`M...`), a
+   * SEP-2 federated address, or `.xlm` name. Defaults to the logged-in account.
    */
   to?: string;
   /**
@@ -96,9 +96,7 @@ const toStroops = (amount: string, requireExact = true): BigNumber => {
   }
 
   if (requireExact && !stroops.isInteger()) {
-    throw new Error(
-      'BLUX: swap "amount" can have at most 7 decimal places.',
-    );
+    throw new Error('BLUX: swap "amount" can have at most 7 decimal places.');
   }
 
   const rounded = requireExact
@@ -116,9 +114,7 @@ const assertStellarAmount = (amountString: string): void => {
   const fraction = amountString.split('.')[1];
 
   if (fraction && fraction.length > 7) {
-    throw new Error(
-      'BLUX: swap "amount" can have at most 7 decimal places.',
-    );
+    throw new Error('BLUX: swap "amount" can have at most 7 decimal places.');
   }
 
   toStroops(amountString, true);
@@ -136,7 +132,9 @@ const applySlippage = (
   direction: 'down' | 'up',
 ): string => {
   const stroops = toStroops(amount, false);
-  const factor = new BigNumber(direction === 'down' ? 1 - slippage : 1 + slippage);
+  const factor = new BigNumber(
+    direction === 'down' ? 1 - slippage : 1 + slippage,
+  );
   let result = stroops.times(factor);
   result =
     direction === 'down'
@@ -467,8 +465,12 @@ export const buildSwapTransaction = async (
   const resolved = to
     ? await resolveAddress(to)
     : {
+        address: sourcePublicKey,
         destination: sourcePublicKey,
         publicKey: sourcePublicKey,
+        kind: 'account' as const,
+        memo: undefined,
+        memoType: undefined,
         federated: false,
       };
 

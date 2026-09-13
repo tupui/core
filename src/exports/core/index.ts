@@ -13,6 +13,14 @@ export {
 export { getLedgers } from './getLedgers';
 export { getLiquidityPools } from './getLiquidityPools';
 export { getNetwork } from './getNetwork';
+export {
+  resolveXlmName,
+  resolveXlmNameByAddress,
+  type XlmNameLookupOptions,
+  type XlmNameRecord,
+  type XlmAccountNameRecord,
+  type XlmContractNameRecord,
+} from './resolveXlmName';
 export { getOffers } from './getOffers';
 export { getOperations } from './getOperations';
 export { getOrderbook } from './getOrderbook';
@@ -22,7 +30,7 @@ export { getStrictSendPaths } from './getStrictSendPaths';
 export { getTradeAggregation } from './getTradeAggregation';
 export { getTrades } from './getTrades';
 export { getTransactions } from './getTransactions';
-export { readContracts } from './readContracts';
+export { readContracts, type ReadContractsResult } from './readContracts';
 export { writeContract } from './writeContract';
 export { transfer, type TransferOptions } from './transfer';
 export { swap, type SwapOptions, type SwapType } from './swap';
@@ -39,11 +47,20 @@ export {
   resolveAsset,
   resolveAddress,
   resolveAddressKey,
+  type AddressExpectation,
+  type ResolveAddressOptions,
   type AssetArg,
   type ResolvedAddress,
+  type ResolvedAccountAddress,
+  type ResolvedContractAddress,
 } from './helpers';
 export type {
   ISubmittedTransaction,
   TransactionReturnValue,
   SendTransactionResult,
 } from '../../types';
+export type {
+  IContractCall,
+  ReadContractsOptions,
+  WriteContractsOptions,
+} from '../utils';

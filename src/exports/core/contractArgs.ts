@@ -1,5 +1,7 @@
 import { contract, rpc, xdr } from '@stellar/stellar-sdk';
 
+import { resolveAddress } from './helpers/resolveAddress';
+
 /**
  * Contract specs are only shared while they are being fetched. This avoids
  * duplicate RPC work for batched reads without keeping a stale spec after a
@@ -102,6 +104,159 @@ const normalizeInteger = (value: unknown, type: xdr.ScSpecTypeDef): unknown => {
   return value;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Resolves human-readable addresses anywhere the contract ABI declares an
+ * address, including inside options, vectors, tuples, maps, structs, or union
+ * cases. Other values are passed through for the SDK's spec encoder.
+ */
+const normalizeNativeValue = async (
+  value: unknown,
+  type: xdr.ScSpecTypeDef,
+  spec: contract.Spec,
+): Promise<unknown> => {
+  if (xdr.ScVal.is(value)) {
+    return value;
+  }
+
+  switch (type.type) {
+    case 'scSpecTypeAddress':
+      if (typeof value !== 'string') {
+        return value;
+      }
+      return (await resolveAddress(value, { expected: 'soroban' })).address;
+
+    case 'scSpecTypeOption':
+      if (value === null || value === undefined) {
+        return value;
+      }
+      return normalizeNativeValue(value, type.value.valueType, spec);
+
+    case 'scSpecTypeVec':
+      if (!Array.isArray(value)) {
+        return value;
+      }
+      return Promise.all(
+        value.map((item) =>
+          normalizeNativeValue(item, type.value.elementType, spec),
+        ),
+      );
+
+    case 'scSpecTypeTuple':
+      if (!Array.isArray(value)) {
+        return value;
+      }
+      return Promise.all(
+        value.map((item, index) =>
+          type.value.valueTypes[index]
+            ? normalizeNativeValue(item, type.value.valueTypes[index], spec)
+            : item,
+        ),
+      );
+
+    case 'scSpecTypeMap': {
+      const normalizeEntry = async ([key, entryValue]: [unknown, unknown]) =>
+        [
+          await normalizeNativeValue(key, type.value.keyType, spec),
+          await normalizeNativeValue(entryValue, type.value.valueType, spec),
+        ] as [unknown, unknown];
+
+      if (value instanceof Map) {
+        return new Map(
+          await Promise.all(Array.from(value.entries()).map(normalizeEntry)),
+        );
+      }
+
+      if (Array.isArray(value)) {
+        return Promise.all(
+          value.map((entry) =>
+            Array.isArray(entry) && entry.length >= 2
+              ? normalizeEntry([entry[0], entry[1]])
+              : entry,
+          ),
+        );
+      }
+
+      return value;
+    }
+
+    case 'scSpecTypeUdt': {
+      if (!isRecord(value) && !Array.isArray(value)) {
+        return value;
+      }
+
+      const entry = spec.findEntry(type.value.name.toString());
+
+      if (entry.type === 'scSpecEntryUdtStructV0') {
+        const fields = entry.value.fields;
+        const numericFields = fields.every((field) =>
+          /^\d+$/.test(field.name.toString()),
+        );
+
+        if (numericFields && Array.isArray(value)) {
+          return Promise.all(
+            fields.map((field, index) =>
+              normalizeNativeValue(value[index], field.type, spec),
+            ),
+          );
+        }
+
+        if (!Array.isArray(value)) {
+          const normalized = { ...value };
+          await Promise.all(
+            fields.map(async (field) => {
+              const name = field.name.toString();
+              normalized[name] = await normalizeNativeValue(
+                value[name],
+                field.type,
+                spec,
+              );
+            }),
+          );
+          return normalized;
+        }
+      }
+
+      if (
+        entry.type === 'scSpecEntryUdtUnionV0' &&
+        !Array.isArray(value) &&
+        typeof value.tag === 'string'
+      ) {
+        const unionCase = entry.value.cases.find(
+          (candidate) => candidate.value.name.toString() === value.tag,
+        );
+
+        if (
+          unionCase?.type === 'scSpecUdtUnionCaseTupleV0' &&
+          Array.isArray(value.values)
+        ) {
+          return {
+            ...value,
+            values: await Promise.all(
+              value.values.map((item, index) =>
+                unionCase.value.type[index]
+                  ? normalizeNativeValue(
+                      item,
+                      unionCase.value.type[index],
+                      spec,
+                    )
+                  : item,
+              ),
+            ),
+          };
+        }
+      }
+
+      return value;
+    }
+
+    default:
+      return normalizeInteger(value, type);
+  }
+};
+
 const describeType = (type: xdr.ScSpecTypeDef): string =>
   type.type.replace('scSpecType', '').toLowerCase();
 
@@ -136,22 +291,24 @@ export const contractArgsToScVals = async (
     );
   }
 
-  return inputs.map((input, index) => {
-    const value = args[index];
-    if (xdr.ScVal.is(value)) {
-      return value;
-    }
+  return Promise.all(
+    inputs.map(async (input, index) => {
+      const value = args[index];
+      if (xdr.ScVal.is(value)) {
+        return value;
+      }
 
-    try {
-      return spec.nativeToScVal(
-        normalizeInteger(value, input.type),
-        input.type,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `BLUX: Could not encode ${callLabel}.args[${index}] (${input.name.toString()}: ${describeType(input.type)}): ${message}`,
-      );
-    }
-  });
+      try {
+        return spec.nativeToScVal(
+          await normalizeNativeValue(value, input.type, spec),
+          input.type,
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `BLUX: Could not encode ${callLabel}.args[${index}] (${input.name.toString()}: ${describeType(input.type)}): ${message}`,
+        );
+      }
+    }),
+  );
 };

@@ -9,9 +9,9 @@ import { checkConfigCreated, CallBuilderOptions } from '../utils';
 export type GetClaimableBalancesOptions = CallBuilderOptions & {
   /** Only balances of this asset (`'xlm'`, `'CODE:ISSUER'`, or an `Asset`). */
   asset: AssetArg;
-  /** Only balances sponsored by this account id. */
+  /** Only balances sponsored by this account id, SEP-2 address, or `.xlm` name. */
   sponsor?: string;
-  /** Only balances claimable by this account (address or federated address). */
+  /** Only balances claimable by this account (address, SEP-2 address, or `.xlm` name). */
   claimant: string;
 };
 

@@ -7,7 +7,7 @@ import { checkConfigCreated, CallBuilderOptions } from '../utils';
 
 /** Options for {@link getOperations}. Extends the shared {@link CallBuilderOptions}. */
 export type GetOperationsOptions = CallBuilderOptions & {
-  /** Only operations touching this account (address or federated address). */
+  /** Only operations touching this account (address, SEP-2 address, or `.xlm` name). */
   forAccount?: string;
   /** Only operations for this claimable balance id. */
   forClaimableBalance?: string;

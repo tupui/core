@@ -1,6 +1,5 @@
-import { StrKey } from '@stellar/stellar-sdk';
-
 import { readContracts } from './readContracts';
+import { resolveAddress } from './helpers';
 import { checkConfigCreated } from '../utils';
 
 /** Options for {@link getTokenMetadata}. */
@@ -31,7 +30,7 @@ export type TokenMetadata = {
  * the standard SEP-41 token interface; `owner` is read separately and omitted
  * when the contract has no `owner()` function.
  *
- * @param address - The token contract id (`C...`), e.g. a SAC from {@link getSacAddress}.
+ * @param address - The token contract id (`C...`) or a `.xlm`/SEP-2 name that resolves to one.
  * @param options - Network to read from.
  * @returns The token's {@link TokenMetadata}.
  * @throws If called before {@link createConfig}, if `address` is not a contract id, or if the contract is missing the standard `decimals`/`name`/`symbol` entrypoints.
@@ -44,19 +43,22 @@ export const getTokenMetadata = async (
     throw new Error('BLUX: getTokenMetadata must be called after createConfig');
   }
 
-  if (!address || !StrKey.isValidContract(address)) {
+  if (!address) {
     throw new Error(
-      'BLUX: getTokenMetadata requires a token contract id (C...).',
+      'BLUX: getTokenMetadata requires a token contract id or .xlm name.',
     );
   }
 
   const { network } = options;
+  const { contractId } = await resolveAddress(address, {
+    expected: 'contract',
+  });
 
-  const meta = await readContracts(
+  const meta = await readContracts<[number, string, string]>(
     [
-      { address, fn: 'decimals', args: [] },
-      { address, fn: 'name', args: [] },
-      { address, fn: 'symbol', args: [] },
+      { address: contractId, fn: 'decimals', args: [] },
+      { address: contractId, fn: 'name', args: [] },
+      { address: contractId, fn: 'symbol', args: [] },
     ],
     { network },
   );
@@ -74,8 +76,8 @@ export const getTokenMetadata = async (
   let owner: string | undefined;
 
   try {
-    const ownerResult = await readContracts(
-      [{ address, fn: 'owner', args: [] }],
+    const ownerResult = await readContracts<[unknown]>(
+      [{ address: contractId, fn: 'owner', args: [] }],
       { network },
     );
 
